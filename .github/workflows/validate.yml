@@ -269,7 +269,9 @@ jobs:
         # ("Failed to fetch version information"). Bump alongside the OpenCode
         # release notes when the adapter needs a newer CLI.
         run: |
-          curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.30
+          installer="$RUNNER_TEMP/opencode-install.sh"
+          curl -fsSL -o "$installer" https://opencode.ai/install
+          bash "$installer" --version 1.18.30
           echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
 
       - name: Install Antigravity CLI
