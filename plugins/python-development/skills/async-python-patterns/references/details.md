@@ -245,21 +245,21 @@ from typing import List, Optional
 class AsyncDB:
     """Simulated async database."""
 
-    async def execute(self, query: str) -> List[dict]:
+    async def execute(self, query: str, params: tuple = ()) -> List[dict]:
         """Execute query."""
         await asyncio.sleep(0.1)
         return [{"id": 1, "name": "Example"}]
 
-    async def fetch_one(self, query: str) -> Optional[dict]:
+    async def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Fetch single row."""
         await asyncio.sleep(0.1)
         return {"id": 1, "name": "Example"}
 
 async def get_user_data(db: AsyncDB, user_id: int) -> dict:
     """Fetch user and related data concurrently."""
-    user_task = db.fetch_one(f"SELECT * FROM users WHERE id = {user_id}")
-    orders_task = db.execute(f"SELECT * FROM orders WHERE user_id = {user_id}")
-    profile_task = db.fetch_one(f"SELECT * FROM profiles WHERE user_id = {user_id}")
+    user_task = db.fetch_one("SELECT * FROM users WHERE id = %s", (user_id,))
+    orders_task = db.execute("SELECT * FROM orders WHERE user_id = %s", (user_id,))
+    profile_task = db.fetch_one("SELECT * FROM profiles WHERE user_id = %s", (user_id,))
 
     user, orders, profile = await asyncio.gather(user_task, orders_task, profile_task)
 
