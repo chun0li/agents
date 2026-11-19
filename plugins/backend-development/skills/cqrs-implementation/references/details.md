@@ -207,33 +207,40 @@ class GetCustomerOrdersHandler(QueryHandler[GetCustomerOrders, PaginatedResult[O
 
     async def handle(self, query: GetCustomerOrders) -> PaginatedResult[OrderView]:
         async with self.read_db.acquire() as conn:
-            # Build query with optional status filter
-            where_clause = "customer_id = $1"
-            params = [query.customer_id]
+            offset = (query.page - 1) * query.page_size
 
             if query.status:
-                where_clause += " AND status = $2"
-                params.append(query.status)
-
-            # Get total count
-            total = await conn.fetchval(
-                f"SELECT COUNT(*) FROM order_views WHERE {where_clause}",
-                *params
-            )
-
-            # Get paginated results
-            offset = (query.page - 1) * query.page_size
-            rows = await conn.fetch(
-                f"""
-                SELECT order_id, customer_id, status, total_amount,
-                       item_count, created_at, shipped_at
-                FROM order_views
-                WHERE {where_clause}
-                ORDER BY created_at DESC
-                LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}
-                """,
-                *params, query.page_size, offset
-            )
+                total = await conn.fetchval(
+                    "SELECT COUNT(*) FROM order_views WHERE customer_id = $1 AND status = $2",
+                    query.customer_id, query.status
+                )
+                rows = await conn.fetch(
+                    """
+                    SELECT order_id, customer_id, status, total_amount,
+                           item_count, created_at, shipped_at
+                    FROM order_views
+                    WHERE customer_id = $1 AND status = $2
+                    ORDER BY created_at DESC
+                    LIMIT $3 OFFSET $4
+                    """,
+                    query.customer_id, query.status, query.page_size, offset
+                )
+            else:
+                total = await conn.fetchval(
+                    "SELECT COUNT(*) FROM order_views WHERE customer_id = $1",
+                    query.customer_id
+                )
+                rows = await conn.fetch(
+                    """
+                    SELECT order_id, customer_id, status, total_amount,
+                           item_count, created_at, shipped_at
+                    FROM order_views
+                    WHERE customer_id = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                    """,
+                    query.customer_id, query.page_size, offset
+                )
 
             return PaginatedResult(
                 items=[OrderView(**dict(row)) for row in rows],
